@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateRequest, requireRole } from "@/lib/auth/middleware";
 import { AttendanceService } from "@/services/attendance.service";
+export const dynamic = "force-dynamic";
 
 // GET /api/attendance/company — company-wide attendance data (MANAGER+)
 export async function GET(req: NextRequest) {
