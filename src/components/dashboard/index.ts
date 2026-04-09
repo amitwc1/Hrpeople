@@ -1,0 +1,12 @@
+export { KPICard } from "./kpi-card";
+export { ChartCard } from "./chart-card";
+export { AttendanceWidget } from "./attendance-widget";
+export { LeaveWidget } from "./leave-widget";
+export { PayrollWidget } from "./payroll-widget";
+export { EmployeeGrowthChart } from "./employee-growth-chart";
+export { ActivityFeed } from "./activity-feed";
+export { QuickActions } from "./quick-actions";
+export { DepartmentWidget } from "./department-widget";
+export { UpcomingEvents } from "./upcoming-events";
+export { EmployeeDashboard } from "./employee-dashboard";
+export { ManagerDashboard } from "./manager-dashboard";

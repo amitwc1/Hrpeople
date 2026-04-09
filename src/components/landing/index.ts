@@ -1,0 +1,10 @@
+export { Navbar } from "./navbar";
+export { Hero } from "./hero";
+export { TrustSection } from "./trust-section";
+export { Features } from "./features";
+export { HowItWorks } from "./how-it-works";
+export { WhyChooseUs } from "./why-choose-us";
+export { Pricing } from "./pricing";
+export { Testimonials } from "./testimonials";
+export { CtaSection } from "./cta-section";
+export { Footer } from "./footer";

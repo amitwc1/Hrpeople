@@ -1,0 +1,208 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ──────────────────────────────────────────────────────────
+    // Helper Functions
+    // ──────────────────────────────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function getUserRole() {
+      return request.auth.token.role;
+    }
+
+    function getCompanyId() {
+      return request.auth.token.companyId;
+    }
+
+    function isSuperAdmin() {
+      return isAuthenticated() && getUserRole() == 'SUPER_ADMIN';
+    }
+
+    function isCompanyAdmin() {
+      return isAuthenticated() && getUserRole() in ['SUPER_ADMIN', 'COMPANY_ADMIN'];
+    }
+
+    function isManager() {
+      return isAuthenticated() && getUserRole() in ['SUPER_ADMIN', 'COMPANY_ADMIN', 'MANAGER'];
+    }
+
+    function belongsToCompany(companyId) {
+      return isAuthenticated() && (isSuperAdmin() || getCompanyId() == companyId);
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // Ensure companyId is present and matches the user's company
+    function hasValidCompanyId() {
+      return request.resource.data.companyId == getCompanyId() || isSuperAdmin();
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Companies Collection
+    // ──────────────────────────────────────────────────────────
+    match /companies/{companyId} {
+      allow read: if belongsToCompany(companyId);
+      allow create: if isSuperAdmin();
+      allow update: if belongsToCompany(companyId) && isCompanyAdmin();
+      allow delete: if isSuperAdmin();
+
+      // Company settings subcollection (if used)
+      match /settings/{settingId} {
+        allow read: if belongsToCompany(companyId);
+        allow write: if belongsToCompany(companyId) && isCompanyAdmin();
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Users Collection
+    // ──────────────────────────────────────────────────────────
+    match /users/{userId} {
+      allow read: if isOwner(userId) || 
+                     (isAuthenticated() && belongsToCompany(resource.data.companyId));
+      allow create: if isCompanyAdmin() && hasValidCompanyId();
+      allow update: if isOwner(userId) || 
+                      (isCompanyAdmin() && belongsToCompany(resource.data.companyId));
+      allow delete: if isSuperAdmin();
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Employees Collection
+    // ──────────────────────────────────────────────────────────
+    match /employees/{employeeId} {
+      allow read: if belongsToCompany(resource.data.companyId);
+      allow create: if isCompanyAdmin() && hasValidCompanyId();
+      allow update: if belongsToCompany(resource.data.companyId) && 
+                      (isCompanyAdmin() || isOwner(resource.data.uid));
+      allow delete: if isSuperAdmin();
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Attendance Collection
+    // ──────────────────────────────────────────────────────────
+    match /attendance/{recordId} {
+      // Employees can read their own, managers/admins can read all in company
+      allow read: if belongsToCompany(resource.data.companyId) && 
+                    (isManager() || resource.data.employeeId == request.auth.uid);
+      // Employees can check in/out for themselves
+      allow create: if isAuthenticated() && hasValidCompanyId() && 
+                      request.resource.data.employeeId == request.auth.uid;
+      allow update: if isAuthenticated() && belongsToCompany(resource.data.companyId) && 
+                      (resource.data.employeeId == request.auth.uid || isManager());
+      allow delete: if false; // Attendance records cannot be deleted
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Leave Requests Collection
+    // ──────────────────────────────────────────────────────────
+    match /leaveRequests/{leaveId} {
+      allow read: if belongsToCompany(resource.data.companyId) && 
+                    (isManager() || resource.data.employeeId == request.auth.uid);
+      // Employees create their own leave requests
+      allow create: if isAuthenticated() && hasValidCompanyId() && 
+                      request.resource.data.status == 'PENDING';
+      // Managers/admins can approve/reject; employees can cancel their own
+      allow update: if belongsToCompany(resource.data.companyId) && 
+                      (isManager() || 
+                       (resource.data.employeeId == request.auth.uid && 
+                        resource.data.status == 'PENDING' && 
+                        request.resource.data.status == 'CANCELLED'));
+      allow delete: if false;
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Leave Balances Collection
+    // ──────────────────────────────────────────────────────────
+    match /leaveBalances/{balanceId} {
+      allow read: if belongsToCompany(resource.data.companyId) && 
+                    (isManager() || resource.data.employeeId == request.auth.uid);
+      allow write: if isCompanyAdmin() && belongsToCompany(resource.data.companyId);
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Leave Types Collection
+    // ──────────────────────────────────────────────────────────
+    match /leaveTypes/{typeId} {
+      allow read: if belongsToCompany(resource.data.companyId);
+      allow write: if isCompanyAdmin() && hasValidCompanyId();
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Leave Policies Collection
+    // ──────────────────────────────────────────────────────────
+    match /leavePolicies/{policyId} {
+      allow read: if belongsToCompany(resource.data.companyId);
+      allow write: if isCompanyAdmin() && hasValidCompanyId();
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Holidays Collection
+    // ──────────────────────────────────────────────────────────
+    match /holidays/{holidayId} {
+      allow read: if belongsToCompany(resource.data.companyId);
+      allow write: if isCompanyAdmin() && hasValidCompanyId();
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Leave Audit Logs Collection
+    // ──────────────────────────────────────────────────────────
+    match /leaveAuditLogs/{logId} {
+      allow read: if belongsToCompany(resource.data.companyId) && 
+                    (isManager() || resource.data.employeeId == request.auth.uid);
+      allow create: if false; // Only server (Admin SDK) writes audit logs
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Payroll Collection
+    // ──────────────────────────────────────────────────────────
+    match /payroll/{payrollId} {
+      // Only admins and the employee themselves can read payroll
+      allow read: if belongsToCompany(resource.data.companyId) && 
+                    (isCompanyAdmin() || resource.data.employeeId == request.auth.uid);
+      allow create: if isCompanyAdmin() && hasValidCompanyId();
+      allow update: if isCompanyAdmin() && belongsToCompany(resource.data.companyId);
+      allow delete: if false; // Payroll records are immutable
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Notifications Collection
+    // ──────────────────────────────────────────────────────────
+    match /notifications/{notificationId} {
+      // Users can only read their own notifications
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      // Only server (admin SDK) creates notifications
+      allow create: if false;
+      // Users can mark their own notifications as read
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow delete: if false;
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Employee Sessions Collection
+    // ──────────────────────────────────────────────────────────
+    match /employee_sessions/{sessionId} {
+      // Admins/managers can read all sessions in company; employees can read their own
+      allow read: if belongsToCompany(resource.data.companyId) && 
+                    (isManager() || resource.data.employeeId == request.auth.uid);
+      // Only server (Admin SDK) creates/updates sessions
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Deny all other access by default
+    // ──────────────────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
