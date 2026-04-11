@@ -109,7 +109,7 @@ export class EmployeeService {
     const allEmployees = snapshot.docs.map((doc) => doc.data() as Employee);
 
     // Sort
-    allEmployees.sort((a, b) => {
+    allEmployees.sort((a: Employee, b: Employee) => {
       const aVal = String((a as unknown as Record<string, unknown>)[sortBy] || "");
       const bVal = String((b as unknown as Record<string, unknown>)[sortBy] || "");
       return sortOrder === "asc"
@@ -203,3 +203,4 @@ export class EmployeeService {
     }));
   }
 }
+

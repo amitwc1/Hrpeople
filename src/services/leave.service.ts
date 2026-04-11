@@ -49,7 +49,7 @@ class AuditEngine {
       .where("leaveRequestId", "==", leaveRequestId)
       .get();
     const logs = snap.docs.map((d) => d.data() as LeaveAuditLog);
-    logs.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    logs.sort((a: LeaveAuditLog, b: LeaveAuditLog) => a.createdAt.localeCompare(b.createdAt));
     return logs;
   }
 
@@ -65,7 +65,7 @@ class AuditEngine {
       .limit(limit)
       .get();
     const logs = snap.docs.map((d) => d.data() as LeaveAuditLog);
-    logs.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    logs.sort((a: LeaveAuditLog, b: LeaveAuditLog) => b.createdAt.localeCompare(a.createdAt));
     return logs;
   }
 }
@@ -558,7 +558,8 @@ export class LeaveService {
       }
     }
 
-    const result = await adminDb.runTransaction(async (txn) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await adminDb.runTransaction(async (txn: any) => {
       const doc = await txn.get(docRef);
       if (!doc.exists) throw new Error("Leave request not found");
 
@@ -768,7 +769,8 @@ export class LeaveService {
   ): Promise<LeaveRequest> {
     const docRef = adminDb.collection(REQUESTS).doc(leaveId);
 
-    const result = await adminDb.runTransaction(async (txn) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await adminDb.runTransaction(async (txn: any) => {
       const doc = await txn.get(docRef);
       if (!doc.exists) throw new Error("Leave request not found");
 
@@ -891,7 +893,7 @@ export class LeaveService {
 
     const snapshot = await query.get();
     let allRequests = snapshot.docs.map((d) => d.data() as LeaveRequest);
-    allRequests.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+    allRequests.sort((a: LeaveRequest, b: LeaveRequest) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 
     if (filters.startDate) allRequests = allRequests.filter((r) => r.endDate >= filters.startDate!);
     if (filters.endDate) allRequests = allRequests.filter((r) => r.startDate <= filters.endDate!);
@@ -961,7 +963,7 @@ export class LeaveService {
       }
     }
 
-    entries.sort((a, b) => a.date.localeCompare(b.date));
+    entries.sort((a: { date: string }, b: { date: string }) => a.date.localeCompare(b.date));
     return entries;
   }
 
@@ -1350,7 +1352,7 @@ export class LeaveService {
 
     const snap = await query.get();
     const holidays = snap.docs.map((d) => d.data() as Holiday);
-    holidays.sort((a, b) => a.date.localeCompare(b.date));
+    holidays.sort((a: Holiday, b: Holiday) => a.date.localeCompare(b.date));
     return holidays;
   }
 
@@ -1481,3 +1483,4 @@ export class LeaveService {
     }
   }
 }
+
